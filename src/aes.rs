@@ -93,6 +93,10 @@ impl AesDecryptedData {
     pub fn into_string(self) -> String {
         String::from_utf8(self.data).unwrap()
     }
+
+    pub fn as_slice(&self) -> &[u8] {
+        &self.data
+    }
 }
 
 #[cfg(test)]
