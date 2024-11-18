@@ -4,6 +4,19 @@ pub struct AesKey {
 }
 
 impl AesKey {
+    pub fn from_str(key: &str) -> AesKey {
+        let mut key_48 = Vec::new();
+
+        while key_48.len() < 48 {
+            key_48.extend_from_slice(key.as_bytes());
+        }
+
+        if key_48.len() > 48 {
+            key_48.truncate(48);
+        }
+
+        AesKey::new(&key_48)
+    }
     pub fn new(key: &[u8]) -> AesKey {
         if key.len() != 48 {
             panic!("AesKey: key must be 48 bytes");
@@ -92,10 +105,6 @@ impl AesDecryptedData {
 
     pub fn into_string(self) -> String {
         String::from_utf8(self.data).unwrap()
-    }
-
-    pub fn as_slice(&self) -> &[u8] {
-        &self.data
     }
 }
 
