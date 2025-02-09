@@ -1,3 +1,5 @@
+use crate::encrypted_data::{AesEncryptedData, AesEncryptedDataOwned};
+
 pub struct AesKey {
     pub key: [u8; 32],
     pub iv: [u8; 16],
@@ -35,15 +37,17 @@ impl AesKey {
         libaes::Cipher::new_256(&self.key)
     }
 
-    pub fn encrypt(&self, data: &[u8]) -> AesEncryptedData {
+    pub fn encrypt(&self, data: &[u8]) -> AesEncryptedDataOwned {
         let cipher = self.get_cipher();
-        AesEncryptedData::new(cipher.cbc_encrypt(&self.iv, data))
+        AesEncryptedDataOwned::new(cipher.cbc_encrypt(&self.iv, data))
     }
 
-    pub fn decrypt(&self, data: &AesEncryptedData) -> Result<AesDecryptedData, String> {
+    pub fn decrypt(&self, data: &impl AesEncryptedData) -> Result<AesDecryptedData, String> {
         let cipher = self.get_cipher();
 
-        let result = std::panic::catch_unwind(|| cipher.cbc_decrypt(&self.iv, data.as_slice()));
+        let data_slice = data.as_slice();
+
+        let result = std::panic::catch_unwind(|| cipher.cbc_decrypt(&self.iv, data_slice));
         match result {
             Ok(result) => {
                 if result.is_empty() {
@@ -54,39 +58,6 @@ impl AesKey {
             }
             Err(err) => Err(format!("AesKey: decryption failed: {:?}", err)),
         }
-    }
-}
-
-pub struct AesEncryptedData {
-    data: Vec<u8>,
-}
-
-impl AesEncryptedData {
-    pub fn new(data: Vec<u8>) -> Self {
-        Self { data }
-    }
-
-    pub fn from_base_64(base64: &str) -> Result<Self, String> {
-        use base64::Engine;
-        let data = base64::engine::general_purpose::STANDARD.decode(base64.as_bytes());
-
-        match data {
-            Ok(data) => Ok(Self { data }),
-            Err(err) => Err(format!("Can not decode base64: {}", err)),
-        }
-    }
-
-    pub fn into_bytes(self) -> Vec<u8> {
-        self.data
-    }
-
-    pub fn as_base_64(&self) -> String {
-        use base64::Engine;
-        base64::engine::general_purpose::STANDARD.encode(&self.data)
-    }
-
-    pub fn as_slice(&self) -> &[u8] {
-        &self.data
     }
 }
 
@@ -115,7 +86,7 @@ impl AesDecryptedData {
 #[cfg(test)]
 mod test {
 
-    use crate::aes::AesEncryptedData;
+    use crate::aes::AesEncryptedDataOwned;
 
     use super::AesKey;
 
@@ -148,7 +119,7 @@ mod test {
         let slice_encrypted = encrypted.as_slice()[..3].to_vec();
 
         // Decryption
-        let decrypted = key.decrypt(&AesEncryptedData::new(slice_encrypted));
+        let decrypted = key.decrypt(&AesEncryptedDataOwned::new(slice_encrypted));
 
         assert!(decrypted.is_err());
     }
